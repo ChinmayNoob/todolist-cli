@@ -165,10 +165,71 @@ func listTodos(showAll bool) {
 	}
 	w.Flush()
 }
-
 func completeTodo(todoID string) {
-	// Implementation for completing a todo
+    f, err := loadFile()
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+        return
+    }
+    defer closeFile(f)
+
+    reader := csv.NewReader(f)
+    records, err := reader.ReadAll()
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Error reading records: %v\n", err)
+        return
+    }
+
+    id, err := strconv.Atoi(todoID)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Invalid todo ID: %s\n", todoID)
+        return
+    }
+
+    found := false
+    for i, record := range records {
+        recordID, _ := strconv.Atoi(record[0])
+        if recordID == id {
+            if records[i][3] == "true" {
+                fmt.Printf("Task %s is already marked as complete\n", todoID)
+                return
+            }
+            records[i][3] = "true"
+            found = true
+            break
+        }
+    }
+
+    if !found {
+        fmt.Printf("No task found with ID %s\n", todoID)
+        return
+    }
+
+    // Clear the file and move the cursor to the beginning
+    if err := f.Truncate(0); err != nil {
+        fmt.Fprintf(os.Stderr, "Error clearing file: %v\n", err)
+        return
+    }
+    if _, err := f.Seek(0, 0); err != nil {
+        fmt.Fprintf(os.Stderr, "Error seeking file: %v\n", err)
+        return
+    }
+
+    writer := csv.NewWriter(f)
+    if err := writer.WriteAll(records); err != nil {
+        fmt.Fprintf(os.Stderr, "Error writing updated records: %v\n", err)
+        return
+    }
+    writer.Flush()
+
+    if err := writer.Error(); err != nil {
+        fmt.Fprintf(os.Stderr, "Error flushing writer: %v\n", err)
+        return
+    }
+
+    fmt.Printf("Marked task %s as complete\n", todoID)
 }
+
 
 func deleteTodo(todoID string) {
 	// Implementation for deleting a todo

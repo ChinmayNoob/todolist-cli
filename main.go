@@ -6,8 +6,10 @@ import (
 	"os"
 	"strconv"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
+	"github.com/mergestat/timediff"
 	"github.com/spf13/cobra"
 )
 
@@ -129,6 +131,39 @@ func addTodo(description string) {
 
 func listTodos(showAll bool) {
 	// Implementation for listing todos
+	f,err := loadFile()
+	if err!=nil {
+		fmt.Fprintf(os.Stderr,"Error: %v\n",err)
+		return
+	}
+	defer closeFile(f)
+
+	reader:=csv.NewReader(f)
+	records,_:=reader.ReadAll()
+
+	w:= tabwriter.NewWriter(os.Stdout,0,0,1,' ',0)
+	if showAll {
+		fmt.Fprintln(w,"ID\tTask\tCreated\tDone")
+	}else{
+		fmt.Fprintln(w,"ID\tTask\tCreated")
+	}
+
+	for _,record:=range records {
+		id,_:=strconv.Atoi(record[0])
+		desc:=record[1]
+		createdAt,_ := time.Parse(time.RFC3339,record[2])
+		isComplete,_:= strconv.ParseBool(record[3])
+
+		if !showAll && isComplete{
+			continue
+		}
+		if showAll {
+			fmt.Fprintf(w,"%d\t%s\t%s\t%v\n",id,desc,timediff.TimeDiff(createdAt),isComplete)
+		}else {
+			fmt.Fprintf(w,"%d\t%s\t%s\n",id,desc,timediff.TimeDiff(createdAt))
+		}
+	}
+	w.Flush()
 }
 
 func completeTodo(todoID string) {

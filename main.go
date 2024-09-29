@@ -130,38 +130,39 @@ func addTodo(description string) {
 }
 
 func listTodos(showAll bool) {
-	// Implementation for listing todos
-	f,err := loadFile()
-	if err!=nil {
-		fmt.Fprintf(os.Stderr,"Error: %v\n",err)
+	f, err := loadFile()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return
 	}
 	defer closeFile(f)
 
-	reader:=csv.NewReader(f)
-	records,_:=reader.ReadAll()
+	reader := csv.NewReader(f)
+	records, _ := reader.ReadAll()
 
-	w:= tabwriter.NewWriter(os.Stdout,0,0,1,' ',0)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	if showAll {
-		fmt.Fprintln(w,"ID\tTask\tCreated\tDone")
-	}else{
-		fmt.Fprintln(w,"ID\tTask\tCreated")
+		fmt.Fprintln(w, "ID\tTask\tCreated\tStatus")
+	} else {
+		fmt.Fprintln(w, "ID\tTask\tCreated\tStatus")
 	}
 
-	for _,record:=range records {
-		id,_:=strconv.Atoi(record[0])
-		desc:=record[1]
-		createdAt,_ := time.Parse(time.RFC3339,record[2])
-		isComplete,_:= strconv.ParseBool(record[3])
+	for _, record := range records {
+		id, _ := strconv.Atoi(record[0])
+		desc := record[1]
+		createdAt, _ := time.Parse(time.RFC3339, record[2])
+		isComplete, _ := strconv.ParseBool(record[3])
 
-		if !showAll && isComplete{
+		status := "❌"
+		if isComplete {
+			status = "✅"
+		}
+
+		if !showAll && isComplete {
 			continue
 		}
-		if showAll {
-			fmt.Fprintf(w,"%d\t%s\t%s\t%v\n",id,desc,timediff.TimeDiff(createdAt),isComplete)
-		}else {
-			fmt.Fprintf(w,"%d\t%s\t%s\n",id,desc,timediff.TimeDiff(createdAt))
-		}
+		
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", id, desc, timediff.TimeDiff(createdAt), status)
 	}
 	w.Flush()
 }
@@ -233,4 +234,28 @@ func completeTodo(todoID string) {
 
 func deleteTodo(todoID string) {
 	// Implementation for deleting a todo
+	f, err := loadFile()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	defer closeFile(f)
+
+	reader := csv.NewReader(f)
+	records, _ := reader.ReadAll()
+
+	var updateRecords [][]string
+
+	for _,record:= range records{
+		id,_:=strconv.Atoi(record[0])
+		if strconv.Itoa(id)!=todoID{
+			updateRecords =append(updateRecords, record)
+		}
+	}
+	f.Truncate(0)
+	f.Seek(0,0)
+	writer:=csv.NewWriter(f)
+	defer writer.Flush()
+	writer.WriteAll(updateRecords)
+	fmt.Printf("Deleted Text %s.\n",todoID)
 }
